@@ -17,7 +17,7 @@ plus the changes FKE needs before they merge upstream, plus this directory. Noth
 | Manifests | `infrastructure-components.yaml` (image pinned by digest) + `metadata.yaml`, archived by the Jenkins job |
 | Consumer | `cbr01-fke-mgmt` `components/capi/providers`: ConfigMap `<version>` selected by the `InfrastructureProvider` |
 
-1. Tag the `fke/main` commit: `git tag -s v0.1.0-rc.3-fke.1 && git push origin v0.1.0-rc.3-fke.1`.
+1. Tag the `fke/main` commit: `git tag -s v0.1.0-rc.3-fke.<n>` (signed; needs `export GPG_TTY=$(tty)`), push the tag.
 2. Run Jenkins job `capnico-fke-build` with `TAG=<version>`.
 3. Copy the archived `infrastructure-components.yaml` and `metadata.yaml` into the provider ConfigMap in `cbr01-fke-mgmt`
    and bump `InfrastructureProvider.spec.version`.
