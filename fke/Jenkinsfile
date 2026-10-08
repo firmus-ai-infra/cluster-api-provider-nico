@@ -1,0 +1,77 @@
+// FKE downstream build of CAPNICO (cluster-api-provider-nico fork, branch fke/main).
+// Builds one immutable release from a v<upstream>-fke.<n> tag:
+//
+//   Checkout (tag) -> Test (make test lint) -> Image (linux/amd64+arm64 -> Harbor) -> Manifests (pinned by digest)
+//
+// All logic is in fke/build.sh; this only orchestrates and supplies credentials. Any stage runs locally with the
+// same command. Consumer: cbr01-fke-mgmt components/capi/providers (ConfigMap with the archived manifests).
+
+pipeline {
+  // Any agent with docker (buildx) or podman: the image cross-compiles, so the agent's architecture does not matter.
+  agent { label params.AGENT ?: 'arm64-native' }
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '30'))
+    timeout(time: 1, unit: 'HOURS')
+  }
+
+  parameters {
+    string(name: 'TAG', defaultValue: '', trim: true,
+           description: 'Release tag to build, v<upstream>-fke.<n> (for example v0.1.0-rc.3-fke.1). Tags are immutable in Harbor.')
+    string(name: 'AGENT', defaultValue: 'arm64-native', trim: true, description: 'Agent label (needs docker buildx or podman)')
+    booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'make test lint before building (skip only to re-run a failed push)')
+    string(name: 'IMAGE', defaultValue: 'harbor.cbr01.in.firmus.co/ai-infra/capnico', trim: true, description: 'Image repository')
+    string(name: 'HARBOR_CREDENTIALS_ID', defaultValue: 'harbor-nico-push', trim: true,
+           description: 'Jenkins username/password credential with push rights on IMAGE')
+  }
+
+  environment {
+    VERSION = "${params.TAG}"
+    IMAGE   = "${params.IMAGE}"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        script {
+          if (!(params.TAG ==~ /^v\d+\.\d+\.\d+(-rc\.\d+)?-fke\.\d+$/)) {
+            error("TAG must look like v0.1.0-rc.3-fke.1 (got '${params.TAG}')")
+          }
+        }
+        checkout([$class: 'GitSCM',
+                  branches: [[name: "refs/tags/${params.TAG}"]],
+                  userRemoteConfigs: scm.userRemoteConfigs,
+                  extensions: [[$class: 'CloneOption', noTags: false, shallow: false]]])
+        sh 'chmod +x fke/build.sh && git describe --tags --exact-match'
+      }
+    }
+
+    stage('Test') {
+      when { expression { params.RUN_TESTS } }
+      steps { sh 'fke/build.sh test' }
+    }
+
+    stage('Image') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: params.HARBOR_CREDENTIALS_ID,
+                                          usernameVariable: 'REGISTRY_USER',
+                                          passwordVariable: 'REGISTRY_PASS')]) {
+          sh 'fke/build.sh image'
+        }
+      }
+    }
+
+    stage('Manifests') {
+      steps { sh 'fke/build.sh manifests' }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts allowEmptyArchive: true, fingerprint: true,
+        artifacts: 'out/fke/image.txt, out/fke/infrastructure-components.yaml, out/fke/metadata.yaml, out/fke/SHA256SUMS'
+    }
+  }
+}
