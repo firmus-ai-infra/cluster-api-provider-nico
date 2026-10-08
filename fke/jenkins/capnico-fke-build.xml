@@ -1,0 +1,77 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<!--
+  Jenkins pipeline job: capnico-fke-build
+  Source of truth for the job; re-applying it reverts UI edits (see fke/README.md).
+  Parameters mirror fke/Jenkinsfile so the first build already offers them.
+-->
+<flow-definition plugin="workflow-job">
+  <description>FKE downstream build of CAPNICO: test, multi-arch image to Harbor, release manifests pinned by digest. Run with TAG=v&lt;upstream&gt;-fke.&lt;n&gt;.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty/>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>30</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>TAG</name>
+          <description>Release tag to build, v&lt;upstream&gt;-fke.&lt;n&gt; (for example v0.1.0-rc.3-fke.1). Tags are immutable in Harbor.</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>AGENT</name>
+          <description>Agent label (needs docker buildx or podman)</description>
+          <defaultValue>arm64-native</defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>RUN_TESTS</name>
+          <description>make test lint before building (skip only to re-run a failed push)</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>IMAGE</name>
+          <description>Image repository</description>
+          <defaultValue>harbor.cbr01.in.firmus.co/ai-infra/capnico</defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>HARBOR_CREDENTIALS_ID</name>
+          <description>Jenkins username/password credential with push rights on IMAGE</description>
+          <defaultValue>harbor-nico-push</defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps">
+    <scm class="hudson.plugins.git.GitSCM" plugin="git">
+      <configVersion>2</configVersion>
+      <userRemoteConfigs>
+        <hudson.plugins.git.UserRemoteConfig>
+          <url>https://github.com/firmus-ai-infra/cluster-api-provider-nico.git</url>
+          <credentialsId>github-app-firmus-ai-infra</credentialsId>
+        </hudson.plugins.git.UserRemoteConfig>
+      </userRemoteConfigs>
+      <branches>
+        <hudson.plugins.git.BranchSpec>
+          <name>*/fke/main</name>
+        </hudson.plugins.git.BranchSpec>
+      </branches>
+      <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+      <submoduleCfg class="empty-list"/>
+      <extensions/>
+    </scm>
+    <scriptPath>fke/Jenkinsfile</scriptPath>
+    <lightweight>false</lightweight>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
