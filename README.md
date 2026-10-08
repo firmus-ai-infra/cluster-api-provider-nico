@@ -133,7 +133,9 @@ The provider uses a Secret for NICo connection details and authentication. The
 Secret supports either a static bearer token or OAuth2 client-credentials.
 
 Each `NicoCluster` supplies the target site. The VPC is set per machine, on
-`NicoMachine.spec.vpcID`.
+`NicoMachine.spec.vpcID`. A `NicoMachine` can carry the site and credentials
+itself instead; see
+[NICo workers with another infrastructure provider](#nico-workers-with-another-infrastructure-provider).
 Each `NicoMachine` becomes one NICo instance, and `NicoMachineTemplate` is intended for use from `KubeadmControlPlane` and `MachineDeployment`.
 
 The controller discovers the current tenant through the NICo API and caches it in the client.
@@ -172,6 +174,43 @@ feature entirely.
 
 See [docs/architecture.md](docs/architecture.md) for the full mechanism,
 capability requirements, and placement-failure semantics.
+
+## NICo workers with another infrastructure provider
+
+A `Cluster` has one infrastructure cluster. When it is not a `NicoCluster` - for
+example a control plane on virtual machines from another provider, with workers
+on NICo bare metal - set the NICo settings on the `NicoMachine` (or the
+`NicoMachineTemplate` of the `MachineDeployment`) and create no `NicoCluster`:
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: NicoMachineTemplate
+metadata:
+  name: workers
+spec:
+  template:
+    spec:
+      siteID: <site-id>
+      identityRef:
+        name: <credentials-secret>      # optional; falls back to the provider-level Secret
+      failureDomainLabelKey: failure_domain   # optional; places instances in Machine.spec.failureDomain
+      vpcID: <vpc-id>
+      instanceTypeID: <instance-type-id>
+      operatingSystemID: <operating-system-id>
+      interfaces:
+        - vpcPrefixID: <vpc-prefix-id>
+```
+
+| Field | Effect |
+| ----- | ------ |
+| `siteID` | Switches the machine to machine-level settings; the `NicoCluster` is not read. Immutable once `providerID` is set |
+| `identityRef`, `powerControlIdentityRef` | As on `NicoCluster`; require `siteID` |
+| `failureDomainLabelKey` | As on `NicoCluster`, for placement only; requires `siteID`. `Cluster.status.failureDomains` comes from the other infrastructure provider, so `MachineDeployment` failure domains must name NICo domains explicitly |
+
+Machines without `siteID` keep reading the `NicoCluster` named by the
+`Cluster`'s `infrastructureRef`. This also works with ClusterClass: the
+template fields can be set from variables, so the topology needs no object
+outside the class.
 
 ## Install
 
@@ -296,6 +335,10 @@ present at the same time:
 2. A per-cluster Secret referenced by `NicoCluster.spec.identityRef`, in the
    same namespace as the `NicoCluster`. When set, it overrides the
    provider-level Secret for that `NicoCluster`.
+
+A `NicoMachine` that sets `spec.siteID` reads `NicoMachine.spec.identityRef`
+(same namespace) instead of the `NicoCluster`'s, with the same fallback to the
+provider-level Secret.
 
 The provider-level Secret's name and namespace are configurable via two manager flags:
 
