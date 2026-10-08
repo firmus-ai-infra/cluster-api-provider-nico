@@ -96,6 +96,10 @@ The spec describes one NICo instance, from its placement to its boot script.
 | `cloudInitInjectHostname` | bool | Prepends hostname directives to the bootstrap cloud-config. |
 | `labels` | map | Labels applied to the instance. |
 | `allowUnhealthyMachine` | bool | Allows targeted instance creation on a machine in Error status. |
+| `siteID` | string, optional | The site where this provider creates and looks up the instance. When set, the machine takes its site, credentials and failure-domain label key from `siteID`, `identityRef`, `powerControlIdentityRef` and `failureDomainLabelKey` on this spec and does not read a `NicoCluster`. Use it when the Cluster's infrastructure cluster is not a `NicoCluster`. An unset value reads them from the `NicoCluster` named by the Cluster's `infrastructureRef`. |
+| `identityRef` | object, optional | As `NicoCluster.spec.identityRef`, in the machine's namespace. It requires `siteID`. |
+| `powerControlIdentityRef` | object, optional | As `NicoCluster.spec.powerControlIdentityRef`, in the machine's namespace. It requires `siteID`. |
+| `failureDomainLabelKey` | string, optional, 1 to 255 characters | As `NicoCluster.spec.failureDomainLabelKey`, used for placement only: it is sent as the machine label selector key for the owning Machine's failure domain. It requires `siteID`. |
 | `providerID` | string | Set by the controller to `nico://<instance-id>` after the NICo instance is created. |
 
 ### Status
