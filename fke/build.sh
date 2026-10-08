@@ -63,8 +63,23 @@ case "${1:-}" in
             --label "org.opencontainers.image.revision=$(git rev-parse HEAD)"
             --label "org.opencontainers.image.source=https://github.com/firmus-ai-infra/cluster-api-provider-nico")
     if [[ "$tool" == docker ]]; then
-      docker buildx create --name capnico-fke --use >/dev/null 2>&1 || docker buildx use capnico-fke
-      docker buildx build --push --platform "$PLATFORMS" "${labels[@]}" -t "$IMAGE:$VERSION" -f Dockerfile.fke .
+      # BuildKit runs in its own container and does not see the host's CA trust: hand it the CA bundle that
+      # signs the registry (Firmus root CA for Harbor). buildx copies the files named in the config into it.
+      registry="${IMAGE%%/*}"
+      ca="${REGISTRY_CA:-}"
+      for candidate in "/etc/docker/certs.d/$registry/ca.crt" /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt; do
+        [[ -z "$ca" && -s "$candidate" ]] && ca="$candidate"
+      done
+      [[ -n "$ca" ]] || die "no CA bundle found for $registry; set REGISTRY_CA"
+      echo "registry CA for $registry: $ca"
+      cfg="$(mktemp)"
+      printf '[registry."%s"]\n  ca = ["%s"]\n' "$registry" "$ca" > "$cfg"
+      trap 'rm -f Dockerfile.fke "$cfg"; docker buildx rm capnico-fke >/dev/null 2>&1 || true' EXIT
+      # Recreate the builder every run, so a stale one without the CA config is never reused.
+      docker buildx rm capnico-fke >/dev/null 2>&1 || true
+      docker buildx create --name capnico-fke --driver docker-container --buildkitd-config "$cfg" >/dev/null
+      docker buildx build --builder capnico-fke --push --platform "$PLATFORMS" "${labels[@]}" \
+        -t "$IMAGE:$VERSION" -f Dockerfile.fke .
     else
       podman build --platform "$PLATFORMS" "${labels[@]}" --manifest "$IMAGE:$VERSION" -f Dockerfile.fke .
       podman manifest push --all "$IMAGE:$VERSION" "docker://$IMAGE:$VERSION"
