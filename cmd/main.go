@@ -20,10 +20,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	infrav1 "github.com/dsx-ai-factory/cluster-api-provider-nico/api/v1alpha1"
 	"github.com/dsx-ai-factory/cluster-api-provider-nico/controllers"
 	"github.com/dsx-ai-factory/cluster-api-provider-nico/internal/nico"
+	webhookv1alpha1 "github.com/dsx-ai-factory/cluster-api-provider-nico/internal/webhook/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,6 +53,8 @@ func main() {
 	var leaderElect bool
 	var watchNamespace string
 	var watchFilterValue string
+	var webhookPort int
+	var webhookCertDir string
 
 	defaultProviderNamespace := os.Getenv(podNamespaceEnvVar)
 	if defaultProviderNamespace == "" {
@@ -59,6 +63,14 @@ func main() {
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.IntVar(&webhookPort, "webhook-port", 9443, "The port the admission webhook server binds to.")
+	flag.StringVar(
+		&webhookCertDir,
+		"webhook-cert-dir",
+		"",
+		"Directory with the webhook server certificate (tls.crt, tls.key). "+
+			"If unspecified, controller-runtime's default (/tmp/k8s-webhook-server/serving-certs) is used.",
+	)
 	flag.BoolVar(&leaderElect, "leader-elect", false, "Enable leader election for the controller manager.")
 	flag.StringVar(
 		&watchNamespace,
@@ -111,6 +123,7 @@ func main() {
 		Scheme:                 scheme,
 		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
+		WebhookServer:          webhook.NewServer(webhook.Options{Port: webhookPort, CertDir: webhookCertDir}),
 		LeaderElection:         leaderElect,
 		LeaderElectionID:       "nico.infrastructure.cluster.x-k8s.io",
 		Cache:                  cache.Options{DefaultNamespaces: watchNamespaces},
@@ -144,6 +157,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := webhookv1alpha1.SetupNicoMachineTemplateWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "NicoMachineTemplate")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

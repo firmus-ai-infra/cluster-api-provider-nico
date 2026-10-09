@@ -1,0 +1,21 @@
+# The provider installs into capnico-system (no namespace transformer in config/default), so set it here: it
+# lands on the Service and, through kustomizeconfig.yaml, on the webhook's clientConfig.service.namespace.
+namespace: capnico-system
+
+resources:
+  - manifests.yaml
+  - service.yaml
+
+configurations:
+  - kustomizeconfig.yaml
+
+# The ValidatingWebhookConfiguration is cluster-scoped: give it a provider-specific name so it cannot collide
+# with another provider's default "validating-webhook-configuration" in the same management cluster.
+patches:
+  - target:
+      kind: ValidatingWebhookConfiguration
+      name: validating-webhook-configuration
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: capnico-validating-webhook-configuration

@@ -56,10 +56,15 @@ but does not apply later changes to the existing instance. Metadata and status
 updates remain allowed. The controller's initial provider ID assignment is the
 transition that freezes the spec.
 
-`NicoMachineTemplate.spec.template.spec` is immutable. To change machine
+`NicoMachineTemplate.spec.template.spec` is immutable, enforced by the
+provider's validating webhook (`internal/webhook/v1alpha1`). To change machine
 infrastructure, create a new `NicoMachineTemplate` and update the
 `KubeadmControlPlane` or `MachineDeployment` reference so Cluster API performs a
-replacement rollout. Template metadata remains mutable.
+replacement rollout. Template metadata remains mutable. The webhook lets the
+Cluster API topology controller's dry-run requests through, so a ClusterClass can
+change the template-derived fields of its NICo machines and the topology
+controller rotates templates by itself; the previous CEL rule could not make that
+distinction and blocked every ClusterClass change that touched the template.
 
 The API group is `infrastructure.cluster.x-k8s.io/v1alpha1`. `metadata.yaml`
 records the Cluster API contract each release series implements. That contract

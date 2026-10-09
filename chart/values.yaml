@@ -175,11 +175,21 @@ metrics:
   # Note: Metrics authn/authz needs ClusterRole access.
   secure: false
 
+## Admission webhook (NicoMachineTemplate immutability, with the Cluster API topology dry-run exception).
+## Required for ClusterClass support; keep enabled unless you run without cert-manager and accept that
+## NicoMachineTemplate.spec.template.spec is then mutable.
+##
+webhook:
+  enabled: true
+  # Port the manager serves the webhook on (Service targetPort).
+  port: 9443
+
 ## Cert-manager integration for TLS certificates.
-## Required for webhook certificates and metrics endpoint certificates.
+## Required for webhook certificates and metrics endpoint certificates. The webhook needs it: the chart
+## creates a self-signed Issuer and the serving Certificate; install cert-manager first.
 ##
 certManager:
-  enabled: false
+  enabled: true
 
 ## Prometheus ServiceMonitor for metrics scraping.
 ## Requires prometheus-operator to be installed in the cluster.

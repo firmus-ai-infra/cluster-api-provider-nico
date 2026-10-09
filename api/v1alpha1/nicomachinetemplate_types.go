@@ -20,7 +20,10 @@ type NicoMachineTemplateResource struct {
 	// +optional
 	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty,omitzero"`
 
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.template.spec is immutable"
+	// Immutable after creation, enforced by the NicoMachineTemplate validating webhook
+	// (internal/webhook/v1alpha1) rather than a CEL rule: the Cluster API topology controller detects template
+	// changes with a server-side-apply dry-run that must be allowed through, and CEL cannot tell a dry-run from
+	// a real update.
 	Spec NicoMachineSpec `json:"spec"`
 }
 

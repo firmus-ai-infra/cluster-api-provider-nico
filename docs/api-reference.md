@@ -127,12 +127,24 @@ status subresource and no controller. Both `KubeadmControlPlane` and
 
 ### Immutability
 
-This kind is stricter than `NicoMachine`. A CEL rule freezes the entire
-`spec.template.spec` on every update from creation onward, rather than gating
-on `providerID` the way `NicoMachine.spec` does. To change machine
+This kind is stricter than `NicoMachine`. The validating webhook freezes the
+entire `spec.template.spec` on every update from creation onward, rather than
+gating on `providerID` the way `NicoMachine.spec` does. To change machine
 infrastructure, create a new `NicoMachineTemplate` and repoint the
 `KubeadmControlPlane` or `MachineDeployment`. Cluster API then performs a
 replacement rollout.
+
+The webhook makes one exception, required by the Cluster API provider contract
+for ClusterClass support: the server-side apply **dry-run** the topology
+controller sends to detect a template change (`DryRun` set and the
+`topology.cluster.x-k8s.io/dry-run` annotation on the object) is accepted. That
+request persists nothing; when it reports a difference, the topology controller
+creates a new template and rotates the `MachineDeployment` or
+`KubeadmControlPlane` to it. A real update, with or without the annotation, and
+a dry-run without the annotation are still rejected. Metadata stays mutable.
+
+The webhook is served by the manager on `--webhook-port` (default `9443`) with
+a certificate from cert-manager (see the installation notes in the README).
 
 ### Spec
 

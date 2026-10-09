@@ -7,6 +7,12 @@ manifest.
 
 ## Install from a checkout
 
+The chart installs a validating webhook for `NicoMachineTemplate` and needs
+[cert-manager](https://cert-manager.io) in the cluster for its serving
+certificate (`certManager.enabled`, default `true`). Every Cluster API
+management cluster already has it (`clusterctl init` installs it).
+
+
 ```bash
 helm upgrade --install capi-provider-nico ./chart \
   --namespace capnico-system \
@@ -76,7 +82,10 @@ create a Kubernetes registry Secret for kubelet to pull the controller image.
 | `metrics.enabled` | `true` | Install the HTTP metrics Service |
 | `metrics.port` | `8080` | Metrics Service port |
 | `prometheus.enabled` | `false` | Install a ServiceMonitor |
-| `networkPolicy.enabled` | `false` | Restrict metrics ingress |
+| `networkPolicy.enabled` | `false` | Restrict metrics and webhook ingress |
+| `webhook.enabled` | `true` | Register the `NicoMachineTemplate` validating webhook (needed for ClusterClass). The manager always serves the webhook endpoint and mounts the serving certificate, so cert-manager is required either way |
+| `webhook.port` | `9443` | Port the manager serves the webhook on |
+| `certManager.enabled` | `true` | Create the self-signed `Issuer` and webhook `Certificate` (requires cert-manager) |
 
 `manager.imagePullSecrets` takes precedence when both pull-secret values are
 set. The top-level value remains supported for upgrades from the former

@@ -72,7 +72,11 @@ spec:
                         type: object
                     type: object
                   spec:
-                    description: NicoMachineSpec defines the desired state of NicoMachine.
+                    description: |-
+                      Immutable after creation, enforced by the NicoMachineTemplate validating webhook
+                      (internal/webhook/v1alpha1) rather than a CEL rule: the Cluster API topology controller detects template
+                      changes with a server-side-apply dry-run that must be allowed through, and CEL cannot tell a dry-run from
+                      a real update.
                     properties:
                       allowUnhealthyMachine:
                         description: AllowUnhealthyMachine allows targeted instance
@@ -261,8 +265,6 @@ spec:
                     - vpcID
                     type: object
                     x-kubernetes-validations:
-                    - message: spec.template.spec is immutable
-                      rule: self == oldSelf
                     - message: exactly one of instanceTypeID or machineID must be
                         set
                       rule: has(self.instanceTypeID) != has(self.machineID)

@@ -194,6 +194,12 @@ Update `config/manager/manager.yaml` to use that image, then install the provide
 kubectl apply -k config/default
 ```
 
+The provider serves a validating webhook for `NicoMachineTemplate` (see
+[API reference](docs/api-reference.md#immutability-1)), so the management
+cluster needs [cert-manager](https://cert-manager.io): `clusterctl init` and the
+Cluster API Operator install it, and `config/default` includes the self-signed
+`Issuer` and the webhook `Certificate`.
+
 Alternatively, install the native Helm chart and supply the same controller
 image without editing the Kustomize source:
 

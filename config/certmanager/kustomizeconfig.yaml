@@ -1,0 +1,9 @@
+# Certificate.spec.secretName and dnsNames are filled by the replacements in config/default, so only the
+# Issuer reference needs kustomize's name handling.
+nameReference:
+  - kind: Issuer
+    group: cert-manager.io
+    fieldSpecs:
+      - kind: Certificate
+        group: cert-manager.io
+        path: spec/issuerRef/name

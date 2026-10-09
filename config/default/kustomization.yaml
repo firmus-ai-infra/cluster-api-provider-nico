@@ -3,6 +3,10 @@ resources:
   - ../crd
   - ../rbac
   - ../manager
+  # [WEBHOOK] The NicoMachineTemplate validating webhook and its Service.
+  - ../webhook
+  # [CERTMANAGER] The webhook serving certificate (cert-manager is a Cluster API management cluster prerequisite).
+  - ../certmanager
   # [METRICS] Expose the controller manager metrics service.
   - metrics_service.yaml
   # [PROMETHEUS] To enable prometheus monitor, uncomment the following line.
@@ -17,3 +21,79 @@ resources:
 # - path: manager_metrics_patch.yaml
 #   target:
 #     kind: Deployment
+
+patches:
+  # [WEBHOOK] Webhook port and serving-certificate volume on the manager.
+  - path: manager_webhook_patch.yaml
+    target:
+      kind: Deployment
+
+# [CERTMANAGER] Wire the Certificate to the webhook: CA injection into the ValidatingWebhookConfiguration and the
+# Service DNS names into the Certificate. Same mechanism as every Cluster API provider.
+replacements:
+  - source:
+      kind: Certificate
+      group: cert-manager.io
+      version: v1
+      name: serving-cert
+      fieldPath: .metadata.namespace
+    targets:
+      - select:
+          kind: ValidatingWebhookConfiguration
+        fieldPaths:
+          - .metadata.annotations.[cert-manager.io/inject-ca-from]
+        options:
+          delimiter: '/'
+          index: 0
+          create: true
+  - source:
+      kind: Certificate
+      group: cert-manager.io
+      version: v1
+      name: serving-cert
+      fieldPath: .metadata.name
+    targets:
+      - select:
+          kind: ValidatingWebhookConfiguration
+        fieldPaths:
+          - .metadata.annotations.[cert-manager.io/inject-ca-from]
+        options:
+          delimiter: '/'
+          index: 1
+          create: true
+  - source:
+      kind: Service
+      version: v1
+      name: webhook-service
+      fieldPath: .metadata.name
+    targets:
+      - select:
+          kind: Certificate
+          group: cert-manager.io
+          version: v1
+          name: serving-cert
+        fieldPaths:
+          - .spec.dnsNames.0
+          - .spec.dnsNames.1
+        options:
+          delimiter: '.'
+          index: 0
+          create: true
+  - source:
+      kind: Service
+      version: v1
+      name: webhook-service
+      fieldPath: .metadata.namespace
+    targets:
+      - select:
+          kind: Certificate
+          group: cert-manager.io
+          version: v1
+          name: serving-cert
+        fieldPaths:
+          - .spec.dnsNames.0
+          - .spec.dnsNames.1
+        options:
+          delimiter: '.'
+          index: 1
+          create: true

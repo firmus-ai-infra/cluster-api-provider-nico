@@ -1,0 +1,15 @@
+# Teach kustomize where the webhook configuration references the Service, so name prefixes and the namespace
+# are applied to clientConfig as well.
+nameReference:
+  - kind: Service
+    version: v1
+    fieldSpecs:
+      - kind: ValidatingWebhookConfiguration
+        group: admissionregistration.k8s.io
+        path: webhooks/clientConfig/service/name
+
+namespace:
+  - kind: ValidatingWebhookConfiguration
+    group: admissionregistration.k8s.io
+    path: webhooks/clientConfig/service/namespace
+    create: true
