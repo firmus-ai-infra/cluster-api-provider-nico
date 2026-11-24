@@ -71,7 +71,7 @@ machines:
 	objects := make([]client.Object, 0, 3+2*nicoMachines)
 	objects = append(objects,
 		&corev1.Secret{
-			Namespace: namespace, Name: "nico-creds",
+			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "nico-creds"},
 			Data: map[string][]byte{
 				nico.SecretKeyEndpoint: []byte(endpoint.URL),
 				nico.SecretKeyOrgID:    []byte("org-1"),
@@ -79,10 +79,10 @@ machines:
 			},
 		},
 		&corev1.Secret{
-			Namespace: namespace, Name: "bootstrap",
-			Data: map[string][]byte{"value": []byte("#cloud-config\n")},
+			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "bootstrap"},
+			Data:       map[string][]byte{"value": []byte("#cloud-config\n")},
 		},
-		&clusterv1.Cluster{Namespace: namespace, Name: "cluster-1"},
+		&clusterv1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "cluster-1"}},
 	)
 	keys := make([]types.NamespacedName, nicoMachines)
 	for i := range nicoMachines {
@@ -91,7 +91,7 @@ machines:
 		labels := map[string]string{clusterv1.ClusterNameLabel: "cluster-1"}
 		objects = append(objects,
 			&clusterv1.Machine{
-				Namespace: namespace, Name: name, Labels: labels,
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Labels: labels},
 				Spec: clusterv1.MachineSpec{
 					ClusterName:   "cluster-1",
 					FailureDomain: "fd-a",
@@ -99,10 +99,12 @@ machines:
 				},
 			},
 			&infrav1.NicoMachine{
-				Namespace: namespace, Name: name, Labels: labels,
-				OwnerReferences: []metav1.OwnerReference{{
-					APIVersion: clusterv1.GroupVersion.String(), Kind: "Machine", Name: name, UID: types.UID(name),
-				}},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespace, Name: name, Labels: labels,
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: clusterv1.GroupVersion.String(), Kind: "Machine", Name: name, UID: types.UID(name),
+					}},
+				},
 				Spec: infrav1.NicoMachineSpec{
 					SiteID:                "site-1",
 					IdentityRef:           corev1.LocalObjectReference{Name: "nico-creds"},
