@@ -43,8 +43,11 @@ in_go() {  # run make targets in the pinned Go image: the agent needs only a con
   # them) and never the host's bin/.
   "$tool" run --rm -v "$PWD:/src" -v capnico-fke-cache:/cache -w /src -e HOME=/tmp -e GOFLAGS=-buildvcs=false \
     -e LOCALBIN=/cache/bin -e GOMODCACHE=/cache/gomod -e GOCACHE=/cache/gocache "$GO_IMAGE" \
-    bash -c "git config --global --add safe.directory /src && $*"
+    bash -c "git config --global --add safe.directory /src && $*; rc=\$?; $(own_back); exit \$rc"
 }
+# Docker runs the container as root, so files it writes into the workspace would be root's and the Jenkins agent could
+# no longer clean it. Rootless podman maps root to the invoking user already.
+own_back() { [[ "$tool" == docker ]] && echo "chown -R $(id -u):$(id -g) /src" || echo true; }
 
 case "${1:-}" in
   test)
