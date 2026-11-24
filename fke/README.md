@@ -3,10 +3,14 @@
 Branch `fke/main` of `firmus-ai-infra/cluster-api-provider-nico` = upstream `dsx-ai-factory/cluster-api-provider-nico`
 plus the changes FKE needs before they merge upstream, plus this directory. Nothing here goes upstream.
 
+Base: upstream tag `v0.2.0`.
+
 | Commit on top of upstream | Upstream |
 | ------------------------- | -------- |
-| `feat(api): let NicoMachine carry its site and credentials without a NicoCluster` | issue #210 |
 | `chore(fke): downstream build` (this directory) | - |
+| `fix(fke): trust the registry CA inside the buildx builder` | - |
+| `fix: add release series 0.2 to metadata.yaml` | issue #306, PR #304 |
+| `feat(controllers): add --nicomachine-concurrency flag` | issue #305, PR #303 |
 
 ## Release
 
@@ -17,7 +21,7 @@ plus the changes FKE needs before they merge upstream, plus this directory. Noth
 | Manifests | `infrastructure-components.yaml` (image pinned by digest) + `metadata.yaml`, archived by the Jenkins job |
 | Consumer | `cbr01-fke-mgmt` `components/capi/providers`: ConfigMap `<version>` selected by the `InfrastructureProvider` |
 
-1. Tag the `fke/main` commit: `git tag -s v0.1.0-rc.3-fke.<n>` (signed; needs `export GPG_TTY=$(tty)`), push the tag.
+1. Tag the `fke/main` commit: `git tag -s v<upstream>-fke.<n>` (signed; needs `export GPG_TTY=$(tty)`), push the tag.
 2. Run Jenkins job `capnico-fke-build` with `TAG=<version>`.
 3. Copy the archived `infrastructure-components.yaml` and `metadata.yaml` into the provider ConfigMap in `cbr01-fke-mgmt`
    and bump `InfrastructureProvider.spec.version`.
